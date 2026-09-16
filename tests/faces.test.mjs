@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { validateEvent, mediaPath, eventMedia } from '../lib/events.mjs';
 import { publishEvent } from '../scripts/upload-core.mjs';
 const legacy = {id:'event_123',detectedAt:'2026-09-16T00:00:00Z',durationSeconds:15,camera:'Test'};
-const event = {...legacy,analysisVersion:1,faceAnalysis:'complete',faces:[{id:'face-1',atSeconds:2,width:120,height:120,confidence:.95}]};
+const event = {...legacy,analysisVersion:2,faceAnalysis:'complete',faces:[{id:'face-1',atSeconds:2,width:120,height:120,confidence:.883}]};
 test('legacy metadata and face paths are bounded',()=>{
   assert.deepEqual(validateEvent(legacy).faces,[]);
   assert.deepEqual(eventMedia(event),['photo','clip','face-1']);

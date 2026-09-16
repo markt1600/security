@@ -7,7 +7,8 @@ import numpy as np
 MODEL = Path(__file__).parent / 'models' / 'yunet.onnx'
 SAMPLE_FPS = 2
 MAX_FACES = 4
-ANALYSIS_VERSION = 1
+ANALYSIS_VERSION = 2
+MIN_CONFIDENCE = .80
 
 
 def overlap(a, b):
@@ -20,7 +21,7 @@ def overlap(a, b):
 def candidate(frame, box, confidence, timestamp):
     x, y, w, h = map(float, box)
     height, width = frame.shape[:2]
-    if min(w,h) < 48 or confidence < .90:
+    if min(w,h) < 48 or confidence < MIN_CONFIDENCE:
         return None
     left, top = max(0,int(x)), max(0,int(y))
     right, bottom = min(width,int(x+w)), min(height,int(y+h))
@@ -30,7 +31,8 @@ def candidate(frame, box, confidence, timestamp):
     grey = cv2.cvtColor(face,cv2.COLOR_BGR2GRAY)
     sharpness = float(cv2.Laplacian(cv2.resize(grey,(128,128)),cv2.CV_64F).var())
     brightness = float(grey.mean())
-    if sharpness < 18 or not 25 < brightness < 235:
+     # Sharpness ranks usable crops; only near-featureless images are rejected.
+    if sharpness < 4 or not 25 < brightness < 235:
         return None
     # A little context around the face, bounded by the original frame.
     margin = max(w,h) * .18
@@ -48,7 +50,7 @@ def extract_faces(video_path, base_path):
         raise FileNotFoundError('YuNet model is missing')
     # Bound CPU use in the recorder's background worker.
     cv2.setNumThreads(2)
-    detector = cv2.FaceDetectorYN.create(str(MODEL),'',(640,360),.90,.3,1000)
+    detector = cv2.FaceDetectorYN.create(str(MODEL),'',(640,360),MIN_CONFIDENCE,.3,1000)
     capture = cv2.VideoCapture(str(video_path))
     if not capture.isOpened():
         raise RuntimeError('Could not open clip for face analysis')

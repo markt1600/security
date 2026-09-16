@@ -115,7 +115,7 @@ Operational verification still requires deployed secrets, a connected private st
 
 ## Local face highlights
 
-Python and OpenCV YuNet run entirely on this PC after FFmpeg finishes each clip. The bundled MIT-licensed model samples two frames per second, requires repeated confident detections, filters small/dark/blurred faces, and saves up to four best crops. Spatial tracking reduces repetition; it does not recognize identities or guarantee unique people. Brief appearances, profiles, distant faces, and occlusion may be missed.
+Python and OpenCV YuNet run entirely on this PC after FFmpeg finishes each clip. The bundled MIT-licensed model samples two frames per second, requires two detections scoring at least 0.80 on the same spatial track, filters small/dark/featureless faces, ranks the remaining crops by sharpness, and saves up to four best crops. Spatial tracking reduces repetition; it does not recognize identities or guarantee unique people. Brief appearances, profiles, distant faces, and occlusion may be missed.
 
 The gallery shows face crops below the video; selecting one seeks to its source moment. When no clear face is found, the video remains available. The generic JPG is retained only as a video poster, with no separate photo view. Crops use the same private Blob storage and owner authorization as videos and upload automatically before the gallery index is updated. Extraction failure does not prevent video upload.
 
