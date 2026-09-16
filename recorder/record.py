@@ -135,7 +135,7 @@ try:
         if args.test_event and warmup <= now < warmup + 0.5:
             moving = True
         ring.append((now, frame.copy()))
-        while ring and now - ring[0][0] > PRE:
+        while ring and now - ring[0][0] > PRE + 1 / FPS:
             ring.popleft()
         if moving and now >= warmup:
             last_motion = now
@@ -153,14 +153,24 @@ try:
                 if not writer.isOpened():
                     raise RuntimeError('Could not open recording file')
                 frame_count = 0
-                for _, buffered in ring:
-                    writer.write(buffered); frame_count += 1
+                # Resample against real capture timestamps. A slow camera read
+                # duplicates frames rather than shortening the five-second lead-in.
+                clip_origin = now - PRE
+                buffered = list(ring)
+                position = 0
+                for sample in range(PRE * FPS + 1):
+                    at = clip_origin + sample / FPS
+                    while position + 1 < len(buffered) and buffered[position + 1][0] <= at:
+                        position += 1
+                    writer.write(buffered[position][1]); frame_count += 1
                 meta = {'id':event_id, 'detectedAt':when.isoformat(), 'camera':'C922 · Setup test' if args.test_event else 'C922 · Home', 'durationSeconds':0}
                 clip_started = now
                 logger.info('Movement detected: %s', event_id)
                 continue  # the current frame was already included in the pre-roll
         if writer:
-            writer.write(frame); frame_count += 1
+            expected_frames = int((now - clip_origin) * FPS) + 1
+            while frame_count < expected_frames:
+                writer.write(frame); frame_count += 1
             if now - last_motion >= POST or now - clip_started >= MAX_CLIP - PRE:
                 writer.release(); writer = None
                 meta['durationSeconds'] = frame_count / FPS

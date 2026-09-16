@@ -58,7 +58,18 @@ npm run upload -- --once
 
 Uploads go directly from the PC to Blob using multipart transfer for MP4s, so clips do not pass through a Vercel Function upload-size limit. The token has store-wide read/write access: use a dedicated store, keep the token only on this trusted PC and in Vercel, and never commit `.env.uploader`.
 
-For unattended use, create a Windows Task Scheduler task using `node.exe` as the program, arguments `--env-file=.env.uploader scripts/upload.mjs`, and this repository as **Start in**. Run at startup with restart-on-failure, no execution time limit, and no overlapping instances. The PC must remain powered and awake; the motion recorder needs its own startup/recovery task. Starting at user sign-in is simpler but leaves a gap after a reboot until sign-in.
+For unattended use, the included supervisor keeps both programs running and restarts a camera process whose heartbeat stops for 90 seconds. Install its Windows task under your account:
+
+```powershell
+# Without administrator privileges: starts when you sign in.
+./recorder/install-task.ps1 -AfterSignIn
+# Administrator-only alternative: attempts startup before sign-in using S4U.
+./recorder/install-task.ps1
+```
+
+The task is named **Marktan Camera Monitor**. It has no execution time limit and restarts after failures. The installed setup on Mark's PC uses **At logon** because Windows denied S4U registration without administrator rights. It continues while the screen is locked, but a reboot leaves a gap until Windows sign-in. AC sleep was already disabled. Log files rotate automatically; local recording cleanup is not enabled.
+
+To pause or resume both programs, use Windows Task Scheduler's End/Run actions on **Marktan Camera Monitor**. Keep this application folder in place because the task references it. `supervisor.log`, `recorder.log`, and `status.json` in `C:\Users\markh\Documents\Codex\CameraMonitor` show local health. The supervisor and uploader must remain running for automatic upload and cloud cleanup.
 
 ### Recorder output contract
 
