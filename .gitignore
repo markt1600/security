@@ -1,0 +1,12 @@
+node_modules/
+.next/
+.vercel/
+.env*
+!.env.example
+!.env.uploader.example
+recordings/
+*.log
+*.mp4
+*.jpg
+.uploader.lock
+__pycache__/
