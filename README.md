@@ -9,7 +9,7 @@ Private camera journal for **https://security.marktan.ai**, styled to match The 
 - Shared Google sign-in from marktan.ai, restricted to `markh.tan@gmail.com`.
 - A Windows-compatible Node uploader that watches completed photo/MP4 bundles, retries after connectivity failures, publishes the gallery only after both files upload, and cleans up older cloud media after a 10-minute grace period. Local recordings are never deleted by this uploader.
 
-**The webcam motion recorder itself is a separate component and is not installed or started by this repository.** Its output must follow the bundle contract below. The page is a recordings viewer, not a live webcam stream or recorder-health monitor.
+The included Python recorder (`recorder/record.py`) detects movement with brightness/contrast compensation and a three-frame confirmation. It keeps five seconds before and after movement, saves a photo and H.264 clip, and publishes a completed bundle automatically. The page is a recordings viewer, not a live webcam stream or recorder-health monitor. Light filtering reduces false triggers but cannot eliminate moving shadows, reflections, or all exposure changes.
 
 ## Vercel setup
 
@@ -28,6 +28,14 @@ Signing out on The Daily removes the camera cookie in that browser. The viewer c
 This requires `security.marktan.ai`: a `*.vercel.app` preview cannot receive a `.marktan.ai` cookie and stays locked. All sibling subdomain servers receive domain cookies, so only trusted applications should be hosted under marktan.ai. No security-sensitive value is readable by frontend JavaScript.
 
 ## Automatic uploads from the camera PC
+
+Start the recorder with Python 3.13 and the dependencies in `recorder/requirements.txt`:
+
+```powershell
+python recorder/record.py
+```
+
+The recorder uses the first Windows DirectShow camera (`--camera 0`), captures at 1280×720 and 10 fps, does not record audio, splits continuous movement into roughly two-minute clips, reconnects after camera failures, and recovers failed encodes on restart. Close Windows Camera first so the device is available. A rotating log and `status.json` live beside the recordings directory. With less than 2 GiB free, it pauses new clips instead of filling the disk. Local archive cleanup is not enabled.
 
 Requires Node.js 22+. In this repository:
 
