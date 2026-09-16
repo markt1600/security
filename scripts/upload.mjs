@@ -3,7 +3,7 @@ import { readFile, readdir, stat, realpath, open, unlink } from 'node:fs/promise
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { get, put, list, del } from '@vercel/blob';
-import { INDEX_PATH, PREFIX, LIMIT, validateIndex, validateEvent, mediaPath } from '../lib/events.mjs';
+import { INDEX_PATH, PREFIX, LIMIT, validateIndex, validateEvent, mediaPath, eventMedia, eventChanged } from '../lib/events.mjs';
 import { publishEvent } from './upload-core.mjs';
 
 if (!process.env.BLOB_READ_WRITE_TOKEN) throw new Error('Set BLOB_READ_WRITE_TOKEN in .env.uploader (a dedicated PRIVATE store).');
@@ -64,7 +64,14 @@ async function scan(directory = root, depth = 0) {
         const clip = await insideRoot(`${base}.mp4`);
         const p = await stat(photo), c = await stat(clip);
         if (p.size < 3 || c.size < 12 || p.size > 20 * 1024 ** 2 || c.size > 500 * 1024 ** 2) throw new Error('Invalid media size');
-        found.push({ event, photo, clip });
+        const faceFiles = {};
+        for (const face of event.faces) {
+          const file = await insideRoot(`${base}.${face.id}.jpg`);
+          const info = await stat(file);
+          if (info.size < 3 || info.size > 5 * 1024 ** 2) throw new Error('Invalid face file');
+          faceFiles[face.id] = file;
+        }
+        found.push({ event, photo, clip, faceFiles });
       } catch { console.warn(`Skipping incomplete or invalid event: ${entry.name}`); }
     }
   }
@@ -75,7 +82,7 @@ async function scan(directory = root, depth = 0) {
 // uploads in flight and recently replaced clips from being removed prematurely.
 async function prune() {
   const { index } = await storage.read();
-  const keep = new Set(index.events.flatMap(event => [mediaPath(event.id, 'photo'), mediaPath(event.id, 'clip')]));
+  const keep = new Set(index.events.flatMap(event => eventMedia(event).map(kind => mediaPath(event.id,kind))));
   let cursor;
   do {
     const page = await list({ prefix: `${PREFIX}events/`, cursor, limit: 1000 });
@@ -98,9 +105,10 @@ try {
       if (signature !== lastPublishedSet) {
         let current = (await storage.read()).index;
         for (const item of ready) {
-          if (current.events.some(e => e.id === item.event.id)) continue;
+          const previous = current.events.find(e => e.id === item.event.id);
+          if (previous && !eventChanged(previous,item.event)) continue;
           if (current.events.length === LIMIT && Date.parse(item.event.detectedAt) < Date.parse(current.events.at(-1).detectedAt)) continue;
-          current = await publishEvent(storage, item.event, item.photo, item.clip);
+          current = await publishEvent(storage, item.event, item.photo, item.clip, item.faceFiles);
           console.log(`Uploaded ${item.event.id}`);
         }
         lastPublishedSet = signature;

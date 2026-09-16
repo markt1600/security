@@ -4,7 +4,7 @@ Private camera journal for **https://security.marktan.ai**, styled to match The 
 
 ## What is included
 
-- Latest 10 motion events, photo/video switch, video seeking, Singapore timestamps, responsive gallery, refresh every 30 seconds while visible.
+- Latest 10 motion events, video playback, clickable face highlights, video seeking, Singapore timestamps, responsive gallery, refresh every 30 seconds while visible.
 - Server-side owner authorization on the page, listing, session check, and every media request. No public media redirects or client-side credentials.
 - Shared Google sign-in from marktan.ai, restricted to `markh.tan@gmail.com`.
 - A Windows-compatible Node uploader that watches completed photo/MP4 bundles, retries after connectivity failures, publishes the gallery only after both files upload, and cleans up older cloud media after a 10-minute grace period. Local recordings are never deleted by this uploader.
@@ -81,7 +81,7 @@ recordings/2026-09-16/14-32-08.mp4
 recordings/2026-09-16/14-32-08.event.json
 ```
 
-Use a browser-compatible H.264 MP4 with `faststart`. The recorder should include 5 seconds before movement and 5 seconds after the last movement. The JSON is the **ready signal**: write it to a temporary file and rename it atomically to `.event.json` only after closing the JPG and MP4. Never modify a finalized bundle. Use a globally unique ID for every event.
+Use a browser-compatible H.264 MP4 with `faststart`. The recorder should include 5 seconds before movement and 5 seconds after the last movement. The JSON is the **ready signal**: write it to a temporary file and rename it atomically to `.event.json` only after closing the JPG and MP4. Videos remain immutable. Face backfills may atomically update metadata after saving their crops. Use a globally unique ID for every event.
 
 ```json
 {
@@ -112,3 +112,13 @@ npm run dev
 Without a valid shared session the page displays only the sign-in gate. Missing SSO secrets fail closed. An authorized user without storage configuration receives a retryable storage error, not fabricated detections or a false camera-online status. Tests cover owner/scope checks, tampering, expiry, fail-closed configuration, retention ordering, path validation, atomic upload ordering, and concurrent index updates.
 
 Operational verification still requires deployed secrets, a connected private store, a genuine signed-in browser, and a finalized recorder bundle. No real camera footage is included in tests.
+
+## Local face highlights
+
+Python and OpenCV YuNet run entirely on this PC after FFmpeg finishes each clip. The bundled MIT-licensed model samples two frames per second, requires repeated confident detections, filters small/dark/blurred faces, and saves up to four best crops. Spatial tracking reduces repetition; it does not recognize identities or guarantee unique people. Brief appearances, profiles, distant faces, and occlusion may be missed.
+
+The gallery shows face crops below the video; selecting one seeks to its source moment. When no clear face is found, the video remains available. The generic JPG is retained only as a video poster, with no separate photo view. Crops use the same private Blob storage and owner authorization as videos and upload automatically before the gallery index is updated. Extraction failure does not prevent video upload.
+
+Crops are saved beside each local MP4 as `<base>.face-1.jpg` through `<base>.face-4.jpg`. No cloud inference or face recognition service is used. See `recorder/models/README.md` for the pinned model and checksum.
+
+To add highlights to the latest ten existing local events, run `python recorder/backfill_faces.py` with the current uploader installed. It leaves the original videos unchanged; the uploader publishes the added crops automatically.

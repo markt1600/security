@@ -17,6 +17,7 @@ import uuid
 import cv2
 import imageio_ffmpeg
 from motion import MotionDetector
+from faces import extract_faces, ANALYSIS_VERSION
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--directory', default='C:/Users/markh/Documents/Codex/CameraMonitor/recordings')
@@ -74,6 +75,12 @@ def finish(base, meta):
     if result.returncode:
         raise RuntimeError('FFmpeg encoding failed')
     output.replace(str(base) + '.mp4')
+    try:
+        meta.update(extract_faces(str(base) + '.mp4',base))
+        logger.info('Local face analysis: %s, %s highlight(s)',meta['id'],len(meta['faces']))
+    except Exception:
+        logger.exception('Face analysis failed; preserving the video')
+        meta.update(analysisVersion=ANALYSIS_VERSION,faceAnalysis='failed',faces=[])
     ready = Path(str(base) + '.event.tmp')
     ready.write_text(json.dumps(meta), encoding='utf-8')
     ready.replace(str(base) + '.event.json')
