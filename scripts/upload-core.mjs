@@ -1,3 +1,4 @@
+import { BlobPreconditionFailedError } from '@vercel/blob';
 import { INDEX_PATH, LIMIT, mergeEvent, mediaPath, validateEvent, validateIndex, eventChanged } from '../lib/events.mjs';
 
 // Upload files first. Publish the index LAST so readers never see half an event.
@@ -21,7 +22,7 @@ export async function publishEvent(storage, rawEvent, photo, clip, faceFiles = {
     const next = mergeEvent(validateIndex(current.index), event);
     try { await storage.index(INDEX_PATH, next, current.etag); return next; }
     catch (err) {
-      if (err.name !== 'BlobPreconditionFailedError' || attempt === 3) throw err;
+      if (!(err instanceof BlobPreconditionFailedError) || attempt === 3) throw err;
       current = await storage.read();
     }
   }

@@ -28,7 +28,7 @@ for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => { stopping 
 
 const storage = {
   async read() {
-    const result = await get(INDEX_PATH, { access: 'private', useCache: false });
+    const result = await get(INDEX_PATH, { access: 'private', useCache: false, headers: { 'Accept-Encoding': 'identity' } });
     if (!result) return { index: { version: 1, updatedAt: null, events: [] }, etag: null };
     if (result.statusCode !== 200) throw new Error('Could not read event index');
     return { index: validateIndex(await new Response(result.stream).json()), etag: result.blob.etag };

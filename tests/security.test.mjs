@@ -1,3 +1,4 @@
+import { BlobPreconditionFailedError } from '@vercel/blob';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
@@ -55,7 +56,7 @@ test('conditional-write conflict rereads and preserves concurrent events', async
   const storage = {
     read: async () => ({ index:{version:1, events:reads++ ? [event(1)] : []}, etag:String(reads) }),
     media:async () => {},
-    index:async (_path, value) => { if (!writes++) { const err = new Error(); err.name='BlobPreconditionFailedError'; throw err; } saved=value; },
+    index:async (_path, value) => { if (!writes++) { throw new BlobPreconditionFailedError(); } saved=value; },
   };
   await publishEvent(storage, event(2), 'photo', 'clip');
   assert.deepEqual(saved.events.map(e => e.id), ['event_002','event_001']);
