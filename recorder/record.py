@@ -17,11 +17,13 @@ import uuid
 import cv2
 import imageio_ffmpeg
 from motion import MotionDetector
+from camera_device import resolve_camera
 from faces import extract_faces, ANALYSIS_VERSION
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--directory', default='C:/Users/markh/Documents/Codex/CameraMonitor/recordings')
-parser.add_argument('--camera', type=int, default=0)
+parser.add_argument('--camera', type=int, default=None, help='Explicit device-index override')
+parser.add_argument('--camera-name', default='c922 Pro Stream Webcam')
 parser.add_argument('--seconds', type=int, default=0, help='Optional bounded test run')
 parser.add_argument('--test-event', action='store_true', help='Record one clearly labeled setup verification clip')
 parser.add_argument('--minimum-area', type=float, default=0.0025)
@@ -59,7 +61,7 @@ pool = ThreadPoolExecutor(max_workers=1)
 jobs = []
 
 def status(state, **extra):
-    payload = {'state': state, 'updatedAt': datetime.now(timezone.utc).isoformat(), **extra}
+    payload = {'state': state, 'updatedAt': datetime.now(timezone.utc).isoformat(), 'cameraName': args.camera_name, **extra}
     temp = root.parent / 'status.tmp'
     temp.write_text(json.dumps(payload), encoding='utf-8')
     temp.replace(root.parent / 'status.json')
@@ -109,7 +111,13 @@ try:
     while not stop and (not args.seconds or time.monotonic() - started < args.seconds):
         if cap is None:
             status('connecting')
-            cap = cv2.VideoCapture(args.camera, cv2.CAP_DSHOW)
+            try:
+                camera_index = args.camera if args.camera is not None else resolve_camera(args.camera_name)
+            except Exception as error:
+                status('camera_unavailable'); logger.warning('Requested camera unavailable: %s', error)
+                time.sleep(5); continue
+            logger.info('Opening camera %s at DirectShow index %s', args.camera_name, camera_index)
+            cap = cv2.VideoCapture(camera_index, cv2.CAP_DSHOW)
             cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
